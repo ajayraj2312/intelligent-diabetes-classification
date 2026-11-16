@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.freebuff/
+.cloud-attachments/
+.pytest_cache/
+diabetes-classification-prototype/
+database/*.db
+database/*.sqlite
+.env

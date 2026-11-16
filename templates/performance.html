@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Model performance{% endblock %}
+{% block eyebrow %}Evaluation{% endblock %}
+{% block page_title %}Model performance analysis{% endblock %}
+{% block page_subtitle %}All metrics are calculated on the untouched 20% test split ({{ meta.split.test_samples }} records) and stored with the trained artifacts.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('afo') }}">{{ icon('fish', 16) }} AFO report</a>
+<a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="card best-model-card">
+    <div class="best-model-head">
+      <div class="best-model-title">
+        <span class="best-icon">{{ icon('target', 24) }}</span>
+        <div>
+          <span class="eyebrow">Selected production model</span>
+          <h2>{{ meta.best_model_name }}</h2>
+          <p>{{ meta.best_model_family }} · trained on {{ meta.selected_features|length }} AFO-selected features</p>
+        </div>
+      </div>
+      <div class="best-badges">
+        <span class="badge badge-green">AFO-optimized</span>
+        <span class="badge badge-blue">{{ meta.training_runtime_seconds }}s training</span>
+      </div>
+    </div>
+    <div class="metric-strip">
+      <div class="metric-tile"><span>Accuracy</span><strong>{{ best.accuracy|pct }}</strong><small>Overall correctness</small></div>
+      <div class="metric-tile"><span>Precision</span><strong>{{ best.precision|pct }}</strong><small>Positive predictive value</small></div>
+      <div class="metric-tile"><span>Recall / Sensitivity</span><strong>{{ best.recall|pct }}</strong><small>Diabetic cases found</small></div>
+      <div class="metric-tile"><span>F1-score</span><strong>{{ best.f1|pct }}</strong><small>Precision–recall balance</small></div>
+      <div class="metric-tile"><span>ROC AUC</span><strong>{{ best.roc_auc|num(3) }}</strong><small>Ranking quality</small></div>
+    </div>
+  </section>
+
+  <section class="chart-grid">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Accuracy: conventional vs AFO</h3>
+          <p class="card-subtitle">Hold-out accuracy for every classifier</p>
+        </div>
+        <span class="badge badge-slate">Test set</span>
+      </div>
+      <div class="card-body"><div class="chart-box"><canvas id="accuracyChart"></canvas></div></div>
+    </article>
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Multi-metric profile</h3>
+          <p class="card-subtitle">AFO-optimized classifiers across five metrics</p>
+        </div>
+        <span class="badge badge-slate">Radar</span>
+      </div>
+      <div class="card-body"><div class="chart-box"><canvas id="radarChart"></canvas></div></div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Full classifier comparison</h3>
+        <p class="card-subtitle">Conventional models use all {{ meta.feature_names|length }} features; AFO models use the {{ meta.selected_features|length }}-feature subset</p>
+      </div>
+      <span class="badge badge-blue">Actual measured values</span>
+    </div>
+    <div class="card-body card-body-flush">
+      <div class="table-scroll">
+        <table class="data-table comparison-table">
+          <thead>
+            <tr>
+              <th>Classifier</th>
+              <th class="num">Accuracy</th>
+              <th class="num">Precision</th>
+              <th class="num">Recall</th>
+              <th class="num">F1</th>
+              <th class="num">AUC</th>
+              <th class="num">Sensitivity</th>
+              <th class="num">Specificity</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="group-row"><td colspan="9">Conventional machine learning · {{ meta.feature_names|length }} features</td></tr>
+            {% for key in model_keys %}
+            {% set row = metrics.baseline[key] %}
+            <tr>
+              <td><div class="model-cell"><span class="model-dot dot-{{ loop.index }}"></span>{{ model_display[key] }}</div></td>
+              <td class="num">{{ row.accuracy|pct }}</td>
+              <td class="num">{{ row.precision|pct }}</td>
+              <td class="num">{{ row.recall|pct }}</td>
+              <td class="num">{{ row.f1|pct }}</td>
+              <td class="num">{{ row.roc_auc|num(3) }}</td>
+              <td class="num">{{ row.sensitivity|pct }}</td>
+              <td class="num">{{ row.specificity|pct }}</td>
+              <td>{% if key == meta.best_baseline_key %}<span class="badge badge-slate">Baseline best</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+
+            <tr class="group-row is-accent"><td colspan="9">AFO-optimized machine learning · {{ meta.selected_features|length }} features</td></tr>
+            {% for key in model_keys %}
+            {% set row = metrics.optimized[key] %}
+            <tr class="{{ 'is-best' if key == meta.best_model_key }}">
+              <td><div class="model-cell"><span class="model-dot dot-{{ loop.index }}"></span>{{ model_display[key] }}</div></td>
+              <td class="num">{{ row.accuracy|pct }}</td>
+              <td class="num">{{ row.precision|pct }}</td>
+              <td class="num">{{ row.recall|pct }}</td>
+              <td class="num">{{ row.f1|pct }}</td>
+              <td class="num">{{ row.roc_auc|num(3) }}</td>
+              <td class="num">{{ row.sensitivity|pct }}</td>
+              <td class="num">{{ row.specificity|pct }}</td>
+              <td>{% if key == meta.best_model_key %}<span class="badge badge-green">Selected</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="two-col-wide">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Confusion matrix</h3>
+          <p class="card-subtitle">{{ meta.best_model_name }} on {{ meta.split.test_samples }} test records</p>
+        </div>
+        <span class="badge badge-slate">Threshold 0.50</span>
+      </div>
+      <div class="card-body">
+        <div class="matrix">
+          <div class="matrix-corner"></div>
+          <div class="matrix-axis">Predicted non-diabetic</div>
+          <div class="matrix-axis">Predicted diabetic</div>
+
+          <div class="matrix-axis matrix-axis-row">Actual non-diabetic</div>
+          <div class="matrix-cell is-true"><strong>{{ best.confusion_matrix.tn }}</strong><span>True negative</span></div>
+          <div class="matrix-cell is-false"><strong>{{ best.confusion_matrix.fp }}</strong><span>False positive</span></div>
+
+          <div class="matrix-axis matrix-axis-row">Actual diabetic</div>
+          <div class="matrix-cell is-false"><strong>{{ best.confusion_matrix.fn }}</strong><span>False negative</span></div>
+          <div class="matrix-cell is-true"><strong>{{ best.confusion_matrix.tp }}</strong><span>True positive</span></div>
+        </div>
+        <div class="matrix-notes">
+          <div>{{ icon('check', 14) }} <span><strong>{{ best.specificity|pct }}</strong> specificity — non-diabetic records correctly cleared.</span></div>
+          <div>{{ icon('alert', 14) }} <span><strong>{{ best.recall|pct }}</strong> sensitivity — {{ best.confusion_matrix.fn }} diabetic records were missed.</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">ROC curves — AFO models</h3>
+          <p class="card-subtitle">True positive rate vs false positive rate</p>
+        </div>
+        <span class="badge badge-slate">AUC shown in legend</span>
+      </div>
+      <div class="card-body"><div class="chart-box"><canvas id="rocChart"></canvas></div></div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Impact of AFO feature optimization</h3>
+        <p class="card-subtitle">Best AFO-optimized model compared with the best conventional model</p>
+      </div>
+      <span class="badge badge-green">{{ (100 - (meta.selected_features|length / meta.feature_names|length * 100))|round(0)|int }}% fewer features</span>
+    </div>
+    <div class="card-body">
+      <div class="delta-grid">
+        <div class="delta-card">
+          <span>Accuracy change</span>
+          <strong class="{{ 'up' if meta.accuracy_gain >= 0 else 'down' }}">{{ '%+.1f'|format(meta.accuracy_gain * 100) }} pp</strong>
+          <small>{{ best_baseline.accuracy|pct }} → {{ best.accuracy|pct }}</small>
+        </div>
+        <div class="delta-card">
+          <span>F1-score change</span>
+          <strong class="{{ 'up' if meta.f1_gain >= 0 else 'down' }}">{{ '%+.1f'|format(meta.f1_gain * 100) }} pp</strong>
+          <small>{{ best_baseline.f1|pct }} → {{ best.f1|pct }}</small>
+        </div>
+        <div class="delta-card">
+          <span>ROC AUC change</span>
+          <strong class="{{ 'up' if meta.auc_gain >= 0 else 'down' }}">{{ '%+.3f'|format(meta.auc_gain) }}</strong>
+          <small>{{ best_baseline.roc_auc|num(3) }} → {{ best.roc_auc|num(3) }}</small>
+        </div>
+        <div class="delta-card">
+          <span>CV F1 improvement</span>
+          <strong class="up">{{ '%+.1f'|format((meta.afo.best_cv_f1 - meta.afo.baseline_cv_f1) * 100) }} pp</strong>
+          <small>wrapper selection objective</small>
+        </div>
+      </div>
+      <div class="insight-note">
+        {{ icon('sparkles', 16) }}
+        <p>
+          AFO removed {{ meta.feature_names|length - meta.selected_features|length }} attributes while preserving hold-out accuracy
+          and improving F1 and AUC. The same evaluation protocol, split and random seed were used for every row above, so the
+          comparison is like-for-like. Test-set differences of one or two percentage points are within sampling variation for
+          {{ meta.split.test_samples }} records.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="table-meta">
+    <span>Trained {{ meta.created_at }}</span>
+    <span>Imputation: training median</span>
+    <span>Scaling: standardisation</span>
+    <span>5-fold stratified CV</span>
+    <span>Random state {{ meta.split.random_state }}</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.performanceData = {{ chart_payload|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/performance.js') }}"></script>
+{% endblock %}

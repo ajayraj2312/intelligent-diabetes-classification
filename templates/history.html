@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Prediction history{% endblock %}
+{% block eyebrow %}Records{% endblock %}
+{% block page_title %}Prediction history{% endblock %}
+{% block page_subtitle %}Every assessment is stored in SQLite with its clinical inputs, model output and timestamp.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="history-summary">
+    <div class="summary-card">
+      <span class="summary-icon tone-blue">{{ icon('list', 18) }}</span>
+      <div><span>Matching records</span><strong>{{ total }}</strong></div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-icon tone-rose">{{ icon('pulse', 18) }}</span>
+      <div><span>Diabetic on this page</span><strong>{{ filtered_diabetic }}</strong></div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-icon tone-teal">{{ icon('shield', 18) }}</span>
+      <div><span>Non-diabetic on this page</span><strong>{{ filtered_non_diabetic }}</strong></div>
+    </div>
+    <div class="summary-card">
+      <span class="summary-icon tone-navy">{{ icon('layers', 18) }}</span>
+      <div><span>Page</span><strong>{{ pagination.page }} <small>/ {{ pagination.pages }}</small></strong></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Search &amp; filter</h3>
+        <p class="card-subtitle">Find a record by reference, outcome, model or date range</p>
+      </div>
+      {% if filters.query or filters.outcome or filters.model or filters.date_from or filters.date_to %}
+      <a class="link-arrow" href="{{ url_for('history') }}">{{ icon('refresh', 14) }} Clear filters</a>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <form class="filter-bar" method="get" action="{{ url_for('history') }}">
+        <div class="filter-field filter-search">
+          <label for="q">Patient reference or ID</label>
+          <div class="input-wrap">
+            <span class="input-icon">{{ icon('search', 16) }}</span>
+            <input class="form-input" type="text" id="q" name="q" value="{{ filters.query }}" placeholder="e.g. OP-1042 or 12">
+          </div>
+        </div>
+        <div class="filter-field">
+          <label for="outcome">Outcome</label>
+          <select class="form-input form-select" id="outcome" name="outcome">
+            <option value="">All outcomes</option>
+            <option value="1" {{ 'selected' if filters.outcome == '1' }}>Diabetic</option>
+            <option value="0" {{ 'selected' if filters.outcome == '0' }}>Non-diabetic</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="model">Model</label>
+          <select class="form-input form-select" id="model" name="model">
+            <option value="">All models</option>
+            {% for name in model_display.values() %}
+            <option value="{{ name }}" {{ 'selected' if filters.model == name }}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="date_from">From</label>
+          <input class="form-input" type="date" id="date_from" name="date_from" value="{{ filters.date_from }}">
+        </div>
+        <div class="filter-field">
+          <label for="date_to">To</label>
+          <input class="form-input" type="date" id="date_to" name="date_to" value="{{ filters.date_to }}">
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-primary" type="submit">{{ icon('filter', 15) }} Apply</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Assessment records</h3>
+        <p class="card-subtitle">
+          {% if total %}Showing {{ pagination.start }}–{{ pagination.end }} of {{ total }} records{% else %}No records match the current filters{% endif %}
+        </p>
+      </div>
+      <span class="badge badge-slate">{{ pagination.per_page }} per page</span>
+    </div>
+    <div class="card-body card-body-flush">
+      {% if rows %}
+      <div class="table-scroll">
+        <table class="data-table history-table">
+          <thead>
+            <tr>
+              <th>Record</th>
+              <th>Date &amp; time</th>
+              <th class="num">Age</th>
+              <th class="num">Glucose</th>
+              <th class="num">BMI</th>
+              <th>Outcome</th>
+              <th>Probability</th>
+              <th>Risk</th>
+              <th>Model</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>
+                <span class="record-id">#{{ row.id }}</span>
+                <span class="record-ref">{{ row.patient_ref or 'Anonymous' }}</span>
+              </td>
+              <td class="muted">{{ row.created_at|nice_datetime }}</td>
+              <td class="num">{{ row.age|round(0)|int }}</td>
+              <td class="num">{{ row.glucose|num(0) }}</td>
+              <td class="num">{{ row.bmi|num(1) }}</td>
+              <td><span class="badge {{ 'badge-red' if row.prediction == 1 else 'badge-green' }}">{{ 'Diabetic' if row.prediction == 1 else 'Non-diabetic' }}</span></td>
+              <td>
+                <div class="prob-cell">
+                  <span>{{ (row.probability * 100)|round(1) }}%</span>
+                  <span class="prob-track"><span class="prob-fill {{ 'is-high' if row.prediction == 1 else 'is-low' }}" style="width: {{ (row.probability * 100)|round(0) }}%"></span></span>
+                </div>
+              </td>
+              <td><span class="risk-tag risk-{{ row.risk_level|lower }}">{{ row.risk_level }}</span></td>
+              <td class="muted">{{ row.model_name }}</td>
+              <td class="num"><a class="icon-link" href="{{ url_for('result', prediction_id=row.id) }}" aria-label="View record {{ row.id }}">{{ icon('arrow-right', 15) }}</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <span class="empty-icon">{{ icon('search', 24) }}</span>
+        <h4>No matching records</h4>
+        <p>
+          {% if filters.query or filters.outcome or filters.model or filters.date_from or filters.date_to %}
+          Try broadening the filters or clear them to see every stored assessment.
+          {% else %}
+          No assessments have been recorded yet. Run the first one from the assessment form.
+          {% endif %}
+        </p>
+        {% if filters.query or filters.outcome or filters.model or filters.date_from or filters.date_to %}
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('history') }}">Clear filters</a>
+        {% else %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 15) }} Start an assessment</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="pagination">
+      <span class="pagination-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+      <div class="pagination-links">
+        <a class="page-btn {{ 'is-disabled' if not pagination.has_prev }}" href="{{ url_for('history', page=pagination.page - 1, q=filters.query, outcome=filters.outcome, model=filters.model, date_from=filters.date_from, date_to=filters.date_to) }}">{{ icon('chevron-left', 15) }} Previous</a>
+        <a class="page-btn {{ 'is-disabled' if not pagination.has_next }}" href="{{ url_for('history', page=pagination.page + 1, q=filters.query, outcome=filters.outcome, model=filters.model, date_from=filters.date_from, date_to=filters.date_to) }}">Next {{ icon('chevron-right', 15) }}</a>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

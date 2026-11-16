@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}AFO optimizer{% endblock %}
+{% block eyebrow %}Feature optimization{% endblock %}
+{% block page_title %}Archerfish Optimization report{% endblock %}
+{% block page_subtitle %}A bio-inspired wrapper search that selects the most informative clinical attributes before classification.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('performance') }}">{{ icon('chart', 16) }} Performance</a>
+<a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="afo-hero">
+    <div class="afo-hero-copy">
+      <span class="hero-pill"><span class="status-dot"></span> Metaheuristic feature selection</span>
+      <h2>Eight clinical inputs. {{ afo.selected_features|length }} that matter most.</h2>
+      <p>
+        A school of {{ afo.n_archers }} archerfish searches the feature space for {{ afo.n_iterations }} iterations.
+        Each shot is refraction-corrected toward the best subset, with jet dispersion and peer competition preserving
+        exploration. The winning subset is then used to train all four classifiers.
+      </p>
+      <div class="hero-meta">
+        <span>{{ afo.evaluations }} unique subsets evaluated</span>
+        <span>{{ afo.runtime_seconds }}s runtime</span>
+        <span>Seed {{ afo.seed }} · reproducible</span>
+      </div>
+    </div>
+    <div class="afo-hero-stats">
+      <div class="afo-stat">
+        <span>Selected features</span>
+        <strong>{{ afo.selected_count }}<small>/{{ afo.total_features }}</small></strong>
+        <em>{{ (100 - (afo.selected_count / afo.total_features * 100))|round(0)|int }}% reduction</em>
+      </div>
+      <div class="afo-stat">
+        <span>Best fitness J</span>
+        <strong>{{ afo.best_fitness|num(4) }}</strong>
+        <em>baseline {{ afo.baseline_fitness|num(4) }}</em>
+      </div>
+      <div class="afo-stat">
+        <span>CV F1 improvement</span>
+        <strong class="up">{{ '%+.1f'|format((afo.best_cv_f1 - afo.baseline_cv_f1) * 100) }}<small>pp</small></strong>
+        <em>{{ afo.baseline_cv_f1 }} → {{ afo.best_cv_f1 }}</em>
+      </div>
+      <div class="afo-stat">
+        <span>CV AUC</span>
+        <strong>{{ afo.best_cv_auc|num(3) }}</strong>
+        <em>3-fold, training split</em>
+      </div>
+    </div>
+  </section>
+
+  <section class="two-col-wide">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Selected feature subset</h3>
+          <p class="card-subtitle">Attributes retained by the winning archer</p>
+        </div>
+        <span class="badge badge-green">{{ afo.selected_count }} selected</span>
+      </div>
+      <div class="card-body">
+        <div class="selected-feature-list">
+          {% for feature in afo.selected_features %}
+          <div class="selected-feature">
+            <span class="selected-check">{{ icon('check', 15) }}</span>
+            <div>
+              <strong>{{ feature_labels[feature] }}</strong>
+              <span>{{ feature_units[feature] }} · selection frequency {{ (afo.feature_frequency[feature] * 100)|round(0)|int }}%</span>
+            </div>
+            <span class="badge badge-green">Included</span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <h4 class="mini-heading is-spaced">Unselected attributes</h4>
+        <div class="excluded-feature-list">
+          {% for feature in afo.excluded_features %}
+          <div class="excluded-feature">
+            <span class="excluded-x">{{ icon('x', 13) }}</span>
+            <span>{{ feature_labels[feature] }}</span>
+            <em>{{ (afo.feature_frequency[feature] * 100)|round(0)|int }}% consensus</em>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="field-hint">Consensus is the proportion of the final school that included each attribute; it is reported for interpretability, while the winning subset comes from the best-fitness archer.</p>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Fitness convergence</h3>
+          <p class="card-subtitle">Lower objective values are better</p>
+        </div>
+        <span class="badge badge-slate">{{ afo.n_iterations }} iterations</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box"><canvas id="convergenceChart"></canvas></div>
+        <div class="legend-inline">
+          <span><i class="legend-dot dot-blue"></i> Best fitness</span>
+          <span><i class="legend-dot dot-slate"></i> School mean</span>
+          <span><i class="legend-dot dot-dashed"></i> Conventional baseline</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="chart-grid">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Selection frequency</h3>
+          <p class="card-subtitle">How often each attribute survived in the final school</p>
+        </div>
+      </div>
+      <div class="card-body"><div class="chart-box chart-box-sm"><canvas id="frequencyChart"></canvas></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Before vs after optimization</h3>
+          <p class="card-subtitle">Hold-out performance of each classifier on both feature sets</p>
+        </div>
+        <span class="badge badge-blue">{{ meta.split.test_samples }} test records</span>
+      </div>
+      <div class="card-body card-body-flush">
+        <div class="table-scroll">
+          <table class="data-table afo-table">
+            <thead>
+              <tr>
+                <th>Classifier</th>
+                <th class="num">Conv. accuracy</th>
+                <th class="num">AFO accuracy</th>
+                <th class="num">Δ accuracy</th>
+                <th class="num">AFO F1</th>
+                <th class="num">AFO AUC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key in model_keys %}
+              {% set base = metrics.baseline[key] %}
+              {% set opt = metrics.optimized[key] %}
+              {% set delta = (opt.accuracy - base.accuracy) * 100 %}
+              <tr class="{{ 'is-best' if key == meta.best_model_key }}">
+                <td><div class="model-cell"><span class="model-dot dot-{{ loop.index }}"></span>{{ model_display[key] }}</div></td>
+                <td class="num">{{ base.accuracy|pct }}</td>
+                <td class="num">{{ opt.accuracy|pct }}</td>
+                <td class="num"><span class="delta-pill {{ 'up' if delta >= 0 else 'down' }}">{{ '%+.1f'|format(delta) }} pp</span></td>
+                <td class="num">{{ opt.f1|pct }}</td>
+                <td class="num">{{ opt.roc_auc|num(3) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="table-caption">
+          The selected model, {{ meta.best_model_name }}, is trained on the AFO subset. Accuracy is unchanged on the
+          hold-out split while F1 and AUC improve slightly, using half the input features.
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">How the archerfish search works</h3>
+        <p class="card-subtitle">Implementation of the AFO wrapper used in this project</p>
+      </div>
+      <span class="badge badge-blue">Documented assumptions</span>
+    </div>
+    <div class="card-body">
+      <div class="afo-steps">
+        <div class="afo-step">
+          <span class="afo-step-num">01</span>
+          <h4>Encode the school</h4>
+          <p>Each of {{ afo.n_archers }} archers holds a continuous vector in [0,1]<sup>8</sup>. Thresholding at 0.5 decodes it into a feature mask, constrained to 2–7 features.</p>
+        </div>
+        <div class="afo-step">
+          <span class="afo-step-num">02</span>
+          <h4>Correct the aim</h4>
+          <p>An archer shoots toward the prey (best subset) with a refraction-style correction that is more precise when its fitness is close to the leader's.</p>
+        </div>
+        <div class="afo-step">
+          <span class="afo-step-num">03</span>
+          <h4>Compete &amp; disperse</h4>
+          <p>A peer-competition term points some shots at school-mates, and jet dispersion cools over iterations to shift from exploration to exploitation.</p>
+        </div>
+        <div class="afo-step">
+          <span class="afo-step-num">04</span>
+          <h4>Retain the best</h4>
+          <p>Greedy retention accepts only improving positions. Fitness combines cross-validated F1 and AUC with a parsimony penalty.</p>
+        </div>
+      </div>
+
+      <div class="formula-grid">
+        <div class="formula-card">
+          <span>Subset quality</span>
+          <code>Q(S) = 0.5 · F1<sub>cv</sub>(S) + 0.5 · AUC<sub>cv</sub>(S)</code>
+          <p>Balances thresholded precision/recall with threshold-free ranking quality.</p>
+        </div>
+        <div class="formula-card">
+          <span>Objective (minimise)</span>
+          <code>J(S) = (1−α) · (1 − Q(S)) + α · |S| / d</code>
+          <p>α = {{ afo.alpha }}; the second term rewards smaller feature subsets.</p>
+        </div>
+        <div class="formula-card">
+          <span>Search configuration</span>
+          <code>{{ afo.n_archers }} archers · {{ afo.n_iterations }} iterations · {{ afo.cv_folds }}-fold CV</code>
+          <p>{{ afo.evaluations }} distinct subsets were scored with a shallow random-forest surrogate.</p>
+        </div>
+      </div>
+
+      <div class="insight-note is-amber">
+        {{ icon('info', 16) }}
+        <p>
+          <strong>Implementation note:</strong> the project report describes Archerfish Optimization conceptually but does not
+          publish its exact equations. This prototype therefore implements a transparent Archerfish-inspired population
+          metaheuristic with the phases above. The surrogate (random forest, 80 trees) makes the wrapper affordable, the
+          imputer and scaler are fitted inside each cross-validation fold to avoid leakage, and every run is seeded for
+          reproducibility. No random or hand-picked subset is relabelled as AFO.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card rerun-card">
+    <div class="rerun-copy">
+      <span class="side-icon tone-navy">{{ icon('refresh', 19) }}</span>
+      <div>
+        <h3>Re-run optimization &amp; retrain</h3>
+        <p>Repeats the seeded AFO search and retrains all eight pipelines. Takes about 20 seconds; the demo results are reproducible.</p>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('rerun_afo') }}" data-loading-form data-confirm="Re-run AFO and retrain all classifiers? This takes about 20 seconds.">
+      <button class="btn btn-primary" type="submit">{{ icon('fish', 17) }} Re-optimize features</button>
+      <div class="run-overlay" aria-hidden="true">
+        <span class="spinner spinner-lg"></span>
+        <strong>Archerfish school is searching…</strong>
+        <span>Evaluating subsets and retraining classifiers.</span>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.afoData = {{ chart_payload|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/afo.js') }}"></script>
+{% endblock %}

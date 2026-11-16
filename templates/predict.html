@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}New assessment{% endblock %}
+{% block eyebrow %}Patient assessment{% endblock %}
+{% block page_title %}New diabetes assessment{% endblock %}
+{% block page_subtitle %}Enter the patient's clinical measurements. The AFO-optimized classifier returns a screening result with probability.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('history') }}">{{ icon('history', 16) }} History</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-layout">
+  <form class="card assessment-form" method="post" action="{{ url_for('predict') }}" data-loading-form novalidate>
+    <div class="card-header form-header">
+      <div>
+        <h3 class="card-title">Clinical parameters</h3>
+        <p class="card-subtitle">All eight fields feed the AFO feature selector before classification.</p>
+      </div>
+      <span class="badge badge-blue">{{ icon('lock', 12) }} Local only</span>
+    </div>
+
+    <div class="card-body">
+      <div class="patient-ref-field">
+        <label for="patient_ref">Patient reference <span class="optional">(optional)</span></label>
+        <input class="form-input form-input-plain" type="text" id="patient_ref" name="patient_ref" maxlength="60"
+               placeholder="e.g. OP-1042 or initials" value="{{ form_data.get('patient_ref', '') }}">
+        <p class="field-hint">Used only to make this record searchable in the prediction history.</p>
+      </div>
+
+      {% for group in groups %}
+      <section class="form-section">
+        <div class="form-section-head">
+          <span class="section-icon">{{ icon('user' if group.key == 'profile' else ('flask' if group.key == 'lab' else 'scale'), 18) }}</span>
+          <div>
+            <h4>{{ group.title }}</h4>
+            <p>{{ group.description }}</p>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          {% for field in group.fields %}
+          <div class="field {{ 'has-error' if errors.get(field.name) }}">
+            <div class="field-top">
+              <label for="{{ field.name }}">{{ field.label }}</label>
+              <span class="field-unit">{{ field.unit }}</span>
+            </div>
+            <div class="input-wrap">
+              <span class="input-icon">{{ icon(field.icon, 17) }}</span>
+              <input class="form-input" type="number" id="{{ field.name }}" name="{{ field.name }}"
+                     value="{{ form_data.get(field.name, '') }}"
+                     min="{{ field.min }}" max="{{ field.max }}" step="{{ field.step }}"
+                     placeholder="{{ field.placeholder }}" inputmode="decimal" required
+                     aria-invalid="{{ 'true' if errors.get(field.name) else 'false' }}">
+            </div>
+            <p class="field-hint">{{ field.hint }}</p>
+            {% if errors.get(field.name) %}
+            <p class="field-error">{{ icon('alert', 12) }} {{ errors.get(field.name) }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+
+      <div class="form-note">
+        {{ icon('info', 15) }}
+        <span>Zeros entered for glucose, blood pressure, skin thickness, insulin or BMI are treated as missing and imputed with training-set medians, matching the dataset's cleaning policy.</span>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-secondary" type="reset">{{ icon('refresh', 16) }} Reset</button>
+        <button class="btn btn-primary btn-run" type="submit">
+          {{ icon('pulse', 17) }} Run classification
+        </button>
+      </div>
+    </div>
+
+    <div class="run-overlay" aria-hidden="true">
+      <span class="spinner spinner-lg"></span>
+      <strong>Running the AFO-optimized classifier…</strong>
+      <span>Preprocessing inputs and computing probability.</span>
+    </div>
+  </form>
+
+  <aside class="form-side">
+    <section class="card side-card">
+      <div class="side-card-head">
+        <span class="side-icon tone-navy">{{ icon('cpu', 18) }}</span>
+        <div>
+          <h4>Active classifier</h4>
+          <span class="muted small">AFO-optimized pipeline</span>
+        </div>
+      </div>
+      <div class="side-model">{{ meta.best_model_name }}</div>
+      <div class="side-stats">
+        <div><span>Accuracy</span><strong>{{ meta.best_metrics.accuracy|pct }}</strong></div>
+        <div><span>ROC AUC</span><strong>{{ meta.best_metrics.roc_auc|num(3) }}</strong></div>
+        <div><span>Features</span><strong>{{ meta.selected_features|length }}/{{ meta.feature_names|length }}</strong></div>
+      </div>
+      <div class="side-features">
+        {% for feature in meta.selected_features %}
+        <span class="feature-chip is-selected is-compact">{{ feature_labels[feature] }}</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card side-card">
+      <div class="side-card-head">
+        <span class="side-icon tone-blue">{{ icon('layers', 18) }}</span>
+        <div>
+          <h4>How it works</h4>
+          <span class="muted small">Four-step inference path</span>
+        </div>
+      </div>
+      <ol class="mini-steps">
+        <li><span>1</span><div><strong>Validate</strong><small>Clinical ranges are checked on both client and server.</small></div></li>
+        <li><span>2</span><div><strong>Preprocess</strong><small>Median imputation and standard scaling.</small></div></li>
+        <li><span>3</span><div><strong>Select</strong><small>The AFO subset of {{ meta.selected_features|length }} attributes is used.</small></div></li>
+        <li><span>4</span><div><strong>Classify</strong><small>{{ meta.best_model_name }} returns label and probability.</small></div></li>
+      </ol>
+    </section>
+
+    <section class="card side-card disclaimer-card">
+      <div class="side-card-head">
+        <span class="side-icon tone-amber">{{ icon('alert', 18) }}</span>
+        <div>
+          <h4>Educational use</h4>
+          <span class="muted small">Screening support only</span>
+        </div>
+      </div>
+      <p>This prototype demonstrates an academic machine-learning workflow. It is not a medical device and must not replace a qualified clinician's judgement or laboratory diagnosis.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

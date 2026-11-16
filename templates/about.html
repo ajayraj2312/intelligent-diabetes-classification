@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}System information{% endblock %}
+{% block eyebrow %}Documentation{% endblock %}
+{% block page_title %}System information{% endblock %}
+{% block page_subtitle %}Project background, architecture, methodology and the Archerfish Optimization implementation.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('afo') }}">{{ icon('fish', 16) }} AFO report</a>
+<a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="about-hero">
+    <span class="about-kicker">Final-year engineering project · Phase I</span>
+    <h2>Intelligent Diabetes Classification Using Archerfish Optimization and Machine Learning</h2>
+    <p>
+      A web-based clinical screening prototype that combines bio-inspired feature selection with four classical
+      machine-learning classifiers to estimate diabetes risk from eight routine clinical attributes.
+    </p>
+    <div class="about-meta">
+      <span>{{ icon('database', 15) }} {{ meta.dataset.rows }} PIMA records</span>
+      <span>{{ icon('layers', 15) }} {{ meta.feature_names|length }} clinical features</span>
+      <span>{{ icon('fish', 15) }} {{ meta.selected_count if meta.selected_count else meta.selected_features|length }} AFO features</span>
+      <span>{{ icon('cpu', 15) }} 4 classifiers</span>
+      <span>{{ icon('code', 15) }} Python · Flask · scikit-learn</span>
+    </div>
+  </section>
+
+  <section class="about-grid">
+    <article class="card section-card">
+      <div class="section-card-head">
+        <span class="side-icon tone-blue">{{ icon('book', 19) }}</span>
+        <h3>Introduction</h3>
+      </div>
+      <div class="prose">
+        <p>
+          Diabetes mellitus is a chronic metabolic disorder characterised by elevated blood glucose caused by the body's
+          inability to produce or effectively use insulin. Undetected or poorly managed diabetes can lead to
+          cardiovascular disease, kidney damage, neuropathy and vision loss, so early and accurate detection is
+          clinically important.
+        </p>
+        <p>
+          Machine-learning classifiers such as Support Vector Machines, Random Forests, K-Nearest Neighbours and Naive
+          Bayes can learn risk patterns from clinical attributes. Their performance is limited, however, by redundant,
+          noisy or weakly correlated features. Feature selection removes those attributes, reducing dimensionality and
+          computational overhead.
+        </p>
+        <p>
+          This project applies <strong>Archerfish Optimization (AFO)</strong> — a bio-inspired metaheuristic modelled on
+          the hunting behaviour of archerfish — as a wrapper feature selector, then trains and compares four classifiers
+          on the selected subset. A Flask application exposes the full pipeline through a clinical dashboard.
+        </p>
+      </div>
+    </article>
+
+    <article class="card section-card">
+      <div class="section-card-head">
+        <span class="side-icon tone-rose">{{ icon('alert', 19) }}</span>
+        <h3>Problem statement</h3>
+      </div>
+      <div class="prose">
+        <p>
+          Conventional diabetes classification systems generally use the complete clinical attribute set. This introduces
+          redundant or noisy features, increases computational cost and can reduce classification accuracy. Existing
+          dimensionality-reduction approaches also have limitations:
+        </p>
+        <ul class="info-list">
+          <li>PCA is efficient but may discard low-variance features that carry diagnostic information.</li>
+          <li>PSO and GWO feature selection can converge prematurely to sub-optimal subsets.</li>
+          <li>Feature selection and classifier tuning are often performed separately, limiting the combined gain.</li>
+          <li>Newer bio-inspired algorithms such as AFO remain largely unexplored for diabetes classification.</li>
+        </ul>
+      </div>
+    </article>
+  </section>
+
+  <section class="about-grid">
+    <article class="card section-card">
+      <div class="section-card-head">
+        <span class="side-icon tone-slate">{{ icon('history', 19) }}</span>
+        <h3>Existing system</h3>
+      </div>
+      <div class="prose">
+        <p>
+          Existing studies apply SVM, Random Forest, KNN, Naive Bayes, boosting and quantum classifiers to the PIMA
+          dataset. Comparative studies report strong performance, but most models are trained on all eight attributes
+          without an explicit optimization stage. Where feature selection is used, it is commonly filter-based or relies
+          on established swarm algorithms, and results are rarely integrated into an operational screening interface.
+        </p>
+      </div>
+    </article>
+
+    <article class="card section-card is-highlight">
+      <div class="section-card-head">
+        <span class="side-icon tone-blue">{{ icon('sparkles', 19) }}</span>
+        <h3>Proposed system</h3>
+      </div>
+      <div class="prose">
+        <p>
+          The proposed system adds an AFO wrapper stage between preprocessing and classification. The optimized subset
+          is used to train SVM, Random Forest, KNN and Naive Bayes. The best-performing AFO model is persisted and served
+          through a Flask application with a dashboard, patient assessment form, probability result, optimization report,
+          performance analysis, searchable SQLite history and this documentation module.
+        </p>
+        <div class="proposed-points">
+          <span>{{ icon('check', 13) }} Wrapper-based feature selection</span>
+          <span>{{ icon('check', 13) }} Four-classifier benchmark</span>
+          <span>{{ icon('check', 13) }} Real calculated metrics</span>
+          <span>{{ icon('check', 13) }} Persistent screening history</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-navy">{{ icon('target', 19) }}</span>
+      <h3>Project objectives</h3>
+    </div>
+    <div class="objective-grid">
+      <div class="objective"><span>01</span><p>Preprocess the PIMA dataset through cleaning, missing-value handling and standardisation.</p></div>
+      <div class="objective"><span>02</span><p>Implement a documented Archerfish Optimization wrapper for feature selection.</p></div>
+      <div class="objective"><span>03</span><p>Train and compare SVM, Random Forest, KNN and Naive Bayes on the selected features.</p></div>
+      <div class="objective"><span>04</span><p>Evaluate accuracy, precision, recall, F1-score, AUC, sensitivity and specificity on held-out data.</p></div>
+      <div class="objective"><span>05</span><p>Deliver a usable web prototype that generates real predictions and stores them in SQLite.</p></div>
+      <div class="objective"><span>06</span><p>Keep the training pipeline reproducible, seeded and honestly documented.</p></div>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-blue">{{ icon('layers', 19) }}</span>
+      <h3>Methodology &amp; system architecture</h3>
+    </div>
+    <p class="section-lead">
+      The system follows a modular, iterative development methodology. The six stages below match the architecture in the
+      project report; each is implemented as a separate Python module or application layer.
+    </p>
+    <div class="arch-flow">
+      {% set arch_steps = [
+        {'icon':'database','title':'Data collection','desc':'768 PIMA records, 8 attributes, binary outcome'},
+        {'icon':'filter','title':'Preprocessing','desc':'Zero-to-missing cleaning, median imputation, standard scaling'},
+        {'icon':'fish','title':'AFO feature selection','desc':'22 archers × 12 iterations wrapper search'},
+        {'icon':'layers','title':'Optimized subset','desc':meta.selected_features|join(', ')},
+        {'icon':'brain','title':'ML classification','desc':'SVM, Random Forest, KNN and Naive Bayes'},
+        {'icon':'target','title':'Prediction & evaluation','desc':'Probability output plus accuracy, F1, AUC and confusion matrix'}
+      ] %}
+      {% for step in arch_steps %}
+      <div class="arch-step">
+        <span class="arch-num">{{ '%02d'|format(loop.index) }}</span>
+        <span class="arch-icon">{{ icon(step.icon, 20) }}</span>
+        <h4>{{ step.title }}</h4>
+        <p>{{ step.desc }}</p>
+      </div>
+      {% if not loop.last %}<span class="arch-arrow">{{ icon('arrow-right', 16) }}</span>{% endif %}
+      {% endfor %}
+    </div>
+    <div class="protocol-grid">
+      <div><span>Training split</span><strong>{{ meta.split.train_samples }} records (80%)</strong></div>
+      <div><span>Test split</span><strong>{{ meta.split.test_samples }} records (20%)</strong></div>
+      <div><span>Validation</span><strong>5-fold stratified CV</strong></div>
+      <div><span>Reproducibility</span><strong>Random state {{ meta.split.random_state }}</strong></div>
+    </div>
+    <div class="insight-note">
+      {{ icon('shield', 16) }}
+      <p>
+        The scaler and median imputer are fitted inside every training fold, and AFO only ever sees the training split.
+        The held-out test records are used once, for the final reported metrics, preventing evaluation leakage.
+      </p>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-teal">{{ icon('fish', 19) }}</span>
+      <h3>Archerfish Optimization in this project</h3>
+      <a class="link-arrow" href="{{ url_for('afo') }}">Live report {{ icon('arrow-right', 14) }}</a>
+    </div>
+    <div class="about-grid-inner">
+      <div class="prose">
+        <p>
+          Archerfish hunt insects above the water surface by shooting a jet of water. Because light bends at the
+          air–water interface, the fish must correct its aim rather than target the prey's apparent position. School
+          members also compete for the same prey, and the jet's spread determines the chance of a hit.
+        </p>
+        <p>
+          In this implementation, each archer represents a candidate feature subset encoded as a continuous 8-dimensional
+          position. The school shoots toward the best subset with a refraction-style aim correction, occasionally follows
+          a competing peer, and gradually reduces jet dispersion to shift from exploration to exploitation. Greedy
+          retention keeps only improving shots.
+        </p>
+        <p>
+          The simulated hunt selected <strong>{{ meta.selected_features|length }} of {{ meta.feature_names|length }}</strong>
+          features: <strong>{{ meta.selected_features|join(', ') }}</strong>. The winning subset improved the wrapper's
+          cross-validated F1 from {{ meta.afo.baseline_cv_f1 }} to {{ meta.afo.best_cv_f1 }} and its fitness from
+          {{ meta.afo.baseline_fitness|num(4) }} to {{ meta.afo.best_fitness|num(4) }}.
+        </p>
+      </div>
+      <div class="afo-mini">
+        <div class="afo-mini-row"><span>Archers</span><strong>{{ meta.afo.n_archers }}</strong></div>
+        <div class="afo-mini-row"><span>Iterations</span><strong>{{ meta.afo.n_iterations }}</strong></div>
+        <div class="afo-mini-row"><span>CV folds</span><strong>{{ meta.afo.cv_folds }}</strong></div>
+        <div class="afo-mini-row"><span>Parsimony weight α</span><strong>{{ meta.afo.alpha }}</strong></div>
+        <div class="afo-mini-row"><span>Surrogate</span><strong>{{ 'Random forest' if meta.afo.surrogate == 'forest' else 'Logistic regression' }}</strong></div>
+        <div class="afo-mini-row"><span>Subsets evaluated</span><strong>{{ meta.afo.evaluations }}</strong></div>
+        <div class="afo-mini-row"><span>Runtime</span><strong>{{ meta.afo.runtime_seconds }}s</strong></div>
+        <div class="formula-mini">
+          <code>J(S) = (1−α)(1−Q(S)) + α·|S|/d</code>
+          <span>Q = ½·F1<sub>cv</sub> + ½·AUC<sub>cv</sub></span>
+        </div>
+      </div>
+    </div>
+    <div class="insight-note is-amber">
+      {{ icon('info', 16) }}
+      <p>
+        <strong>Documented assumption:</strong> the project report describes AFO conceptually but does not specify its
+        exact equations. This prototype implements a transparent Archerfish-inspired population algorithm rather than
+        renaming an unrelated selector. All search parameters, the fitness function and the surrogate model are exposed
+        above; the full method is described in the AFO report and README.
+      </p>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-navy">{{ icon('brain', 19) }}</span>
+      <h3>Machine-learning algorithms</h3>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr><th>Classifier</th><th>Family</th><th>Role in the study</th><th class="num">AFO accuracy</th><th class="num">F1</th><th class="num">AUC</th></tr>
+        </thead>
+        <tbody>
+          {% for key, name in model_display.items() %}
+          {% set row = meta.metrics.optimized[key] %}
+          <tr class="{{ 'is-best' if key == meta.best_model_key }}">
+            <td><div class="model-cell"><span class="model-dot dot-{{ loop.index }}"></span>{{ name }}</div></td>
+            <td class="muted">{{ meta.model_family[key] }}</td>
+            <td class="muted">{{ 'Selected production model' if key == meta.best_model_key else 'Benchmark comparison' }}</td>
+            <td class="num">{{ row.accuracy|pct }}</td>
+            <td class="num">{{ row.f1|pct }}</td>
+            <td class="num">{{ row.roc_auc|num(3) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-note">
+      Hyperparameters are fixed before evaluation (SVM RBF C=1, Random Forest 200 trees with depth 6, KNN k=15 with
+      distance weighting, Gaussian Naive Bayes). No test-set tuning is performed.
+    </p>
+  </section>
+
+  <section class="about-grid">
+    <article class="card section-card">
+      <div class="section-card-head">
+        <span class="side-icon tone-blue">{{ icon('database', 19) }}</span>
+        <h3>Dataset</h3>
+      </div>
+      <div class="fact-list">
+        <div><span>Source</span><strong>{{ meta.dataset.source }}</strong></div>
+        <div><span>Records</span><strong>{{ meta.dataset.rows }}</strong></div>
+        <div><span>Features</span><strong>{{ meta.dataset.feature_count }}</strong></div>
+        <div><span>Diabetic / non-diabetic</span><strong>{{ meta.dataset.diabetic }} / {{ meta.dataset.non_diabetic }}</strong></div>
+        <div><span>Original missing markers</span><strong>{{ meta.dataset.missing_total }}</strong></div>
+        <div><span>File</span><strong>{{ meta.dataset.file }}</strong></div>
+        <div><span>SHA-256 (short)</span><strong class="mono">{{ meta.dataset.sha256_short }}</strong></div>
+      </div>
+      <p class="subsection-note">
+        Zero values in glucose, blood pressure, skin thickness, insulin and BMI are physiologically implausible and are
+        treated as missing. Medians are learned from the training split only.
+      </p>
+    </article>
+
+    <article class="card section-card">
+      <div class="section-card-head">
+        <span class="side-icon tone-teal">{{ icon('chart', 19) }}</span>
+        <h3>Evaluation metrics</h3>
+      </div>
+      <ul class="metric-definitions">
+        <li><strong>Accuracy</strong><span>Correct predictions over all test records.</span></li>
+        <li><strong>Precision</strong><span>Of predicted diabetics, the proportion who are actually diabetic.</span></li>
+        <li><strong>Recall / sensitivity</strong><span>Of actual diabetics, the proportion the model finds.</span></li>
+        <li><strong>Specificity</strong><span>Of actual non-diabetics, the proportion correctly cleared.</span></li>
+        <li><strong>F1-score</strong><span>Harmonic mean of precision and recall.</span></li>
+        <li><strong>ROC AUC</strong><span>Probability that a random diabetic is ranked above a random non-diabetic.</span></li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-blue">{{ icon('dashboard', 19) }}</span>
+      <h3>Application modules</h3>
+    </div>
+    <div class="module-grid">
+      <div class="module"><span>{{ icon('dashboard', 16) }}</span><div><strong>1 · Dashboard</strong><p>Live KPIs, distribution, model comparison and recent predictions.</p></div></div>
+      <div class="module"><span>{{ icon('plus', 16) }}</span><div><strong>2 · Assessment</strong><p>Validated eight-parameter clinical input form.</p></div></div>
+      <div class="module"><span>{{ icon('brain', 16) }}</span><div><strong>3 · Prediction engine</strong><p>Imputation, scaling and the selected classifier.</p></div></div>
+      <div class="module"><span>{{ icon('fish', 16) }}</span><div><strong>4 · AFO optimizer</strong><p>Selected-versus-excluded features, convergence and fitness.</p></div></div>
+      <div class="module"><span>{{ icon('target', 16) }}</span><div><strong>5 · Result view</strong><p>Label, probability, risk band, inputs and disclaimer.</p></div></div>
+      <div class="module"><span>{{ icon('chart', 16) }}</span><div><strong>6 · Performance</strong><p>All four classifiers, confusion matrix and ROC curves.</p></div></div>
+      <div class="module"><span>{{ icon('history', 16) }}</span><div><strong>7 · History</strong><p>SQLite-backed, searchable and filterable records.</p></div></div>
+      <div class="module"><span>{{ icon('info', 16) }}</span><div><strong>8 · Information</strong><p>This documentation and methodology page.</p></div></div>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-navy">{{ icon('code', 19) }}</span>
+      <h3>Technology stack</h3>
+    </div>
+    <div class="tech-grid">
+      <div class="tech"><span>Python 3</span><small>Core language</small></div>
+      <div class="tech"><span>Flask</span><small>Web backend</small></div>
+      <div class="tech"><span>scikit-learn</span><small>ML pipelines</small></div>
+      <div class="tech"><span>Pandas</span><small>Data processing</small></div>
+      <div class="tech"><span>NumPy</span><small>Numerical computing</small></div>
+      <div class="tech"><span>AFO</span><small>Feature selection</small></div>
+      <div class="tech"><span>SQLite</span><small>Prediction history</small></div>
+      <div class="tech"><span>Chart.js</span><small>Visualisation</small></div>
+      <div class="tech"><span>HTML / CSS / JS</span><small>Interface</small></div>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-amber">{{ icon('alert', 19) }}</span>
+      <h3>Scope, limitations &amp; disclaimer</h3>
+    </div>
+    <div class="about-grid-inner">
+      <ul class="info-list is-amber">
+        <li>The PIMA dataset contains 768 female patients of Pima Indian heritage; findings may not generalise to other populations.</li>
+        <li>Only one dataset is used. External or multi-centre validation is outside this phase.</li>
+        <li>Zero-to-missing imputation is a documented heuristic, not a substitute for source-level data quality checks.</li>
+        <li>The models are benchmarked on a single stratified hold-out split; metrics have sampling uncertainty.</li>
+        <li>This is an academic prototype, not a certified medical device. It must not be used for clinical decisions.</li>
+      </ul>
+      <div class="disclaimer-compact">
+        {{ icon('shield', 20) }}
+        <p>
+          All predictions are educational screening estimates. Always consult a qualified healthcare professional for
+          diagnosis and treatment.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <div class="section-card-head">
+      <span class="side-icon tone-slate">{{ icon('book', 19) }}</span>
+      <h3>Selected references</h3>
+    </div>
+    <ol class="ref-list">
+      <li>Suresh, H. R., Davamani, K. A., Chandrasekaran, H., &amp; Sankar, N. P. (2025). Dual Multi Scale Attention Network Optimized With Archerfish Hunting Optimization Algorithm for Diabetics Prediction. <em>Microscopy Research and Technique</em>, 88(4), 947–958.</li>
+      <li>Behzadi, P., Farhadi, A., Nazari, E., &amp; Bagheri, R. (2024). Optimized classification of diabetes using dynamic waterwheel plant optimization algorithm. <em>Scientific Reports</em>.</li>
+      <li>Chellappan, D., &amp; Rajaguru, H. (2024). Machine learning meets meta-heuristics: BESO and RDO for feature selection in Type II diabetes diagnosis. <em>Bioengineering</em>, 11(8), 766.</li>
+      <li>Zhu, Y., Zhang, M., Huang, Q., Wu, X., Wan, L., &amp; Huang, J. (2025). Secretary bird optimization algorithm based on quantum computing and multiple strategies improvement for KELM diabetes classification. <em>Scientific Reports</em>, 15, 87285.</li>
+      <li>Rana, M. M., Chowdhury, F. I., &amp; Rodela, A. T. (2025). Diabetes prediction using feature selection algorithms and boosting-based machine learning classifiers. <em>Diagnostics</em>, 15(20), 2622.</li>
+    </ol>
+  </section>
+</div>
+{% endblock %}

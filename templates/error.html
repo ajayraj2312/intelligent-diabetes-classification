@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Error {{ code }}{% endblock %}
+{% block eyebrow %}System{% endblock %}
+{% block page_title %}Something went off course{% endblock %}
+{% block page_subtitle %}The request could not be completed.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('dashboard') }}">{{ icon('dashboard', 16) }} Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<section class="card error-card">
+  <span class="error-code">{{ code }}</span>
+  <span class="error-icon">{{ icon('alert', 30) }}</span>
+  <h2>{{ message }}</h2>
+  <p>Return to the dashboard and try again. If the problem persists, restart the Flask server.</p>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="{{ url_for('dashboard') }}">{{ icon('dashboard', 16) }} Back to dashboard</a>
+    <a class="btn btn-secondary" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+  </div>
+</section>
+{% endblock %}

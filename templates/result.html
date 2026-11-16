@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Assessment #{{ record.id }}{% endblock %}
+{% block eyebrow %}Screening result{% endblock %}
+{% block page_title %}Assessment summary{% endblock %}
+{% block page_subtitle %}Record #{{ record.id }} · {{ record.created_at|nice_datetime }}{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('history') }}">{{ icon('history', 16) }} History</a>
+<a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <a class="back-link" href="{{ url_for('history') }}">{{ icon('arrow-left', 15) }} Back to prediction history</a>
+
+  <section class="result-banner {{ 'is-diabetic' if result.prediction == 1 else 'is-clear' }}">
+    <div class="result-icon-wrap">
+      {{ icon('pulse' if result.prediction == 1 else 'shield', 30) }}
+    </div>
+    <div class="result-copy">
+      <span class="result-eyebrow">Model classification</span>
+      <h2>{{ result.label }}</h2>
+      <p>
+        {% if result.prediction == 1 %}
+        The AFO-optimized model identified a diabetes-positive pattern for this record.
+        {% else %}
+        The AFO-optimized model did not identify a diabetes-positive pattern for this record.
+        {% endif %}
+        Risk band: <strong>{{ result.risk_level }}</strong>.
+      </p>
+      <div class="result-meta-row">
+        <span>{{ icon('cpu', 14) }} {{ result.model_name }}</span>
+        <span>{{ icon('layers', 14) }} {{ result.selected_features|length }} of {{ meta.feature_names|length }} features</span>
+        <span>{{ icon('calendar', 14) }} {{ record.created_at|nice_datetime }}</span>
+      </div>
+    </div>
+    <div class="result-score">
+      <strong>{{ result.probability_percent }}%</strong>
+      <span>diabetes probability</span>
+    </div>
+  </section>
+
+  <section class="result-grid">
+    <article class="card gauge-card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Probability profile</h3>
+          <p class="card-subtitle">Positive-class probability returned by {{ result.model_name }}</p>
+        </div>
+        <span class="badge badge-{{ 'red' if result.risk_class == 'high' else ('amber' if result.risk_class == 'moderate' else 'green') }}">{{ result.risk_level }} risk</span>
+      </div>
+      <div class="card-body">
+        <div class="gauge-wrap">
+          <canvas id="gaugeChart" aria-label="Diabetes probability gauge"></canvas>
+          <div class="gauge-center">
+            <strong>{{ result.probability_percent }}%</strong>
+            <span>probability</span>
+          </div>
+        </div>
+        <div class="gauge-legend">
+          <span><i class="legend-dot dot-green"></i> Low &lt; 35%</span>
+          <span><i class="legend-dot dot-amber"></i> Moderate 35–60%</span>
+          <span><i class="legend-dot dot-red"></i> High ≥ 60%</span>
+        </div>
+        <div class="detail-list">
+          <div><span>Decision threshold</span><strong>{{ (result.threshold * 100)|round(0)|int }}%</strong></div>
+          <div><span>Classification confidence</span><strong>{{ result.confidence_percent }}%</strong></div>
+          <div><span>Features used</span><strong>{{ result.selected_features|length }} / {{ meta.feature_names|length }}</strong></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Model &amp; feature context</h3>
+          <p class="card-subtitle">How this prediction was generated</p>
+        </div>
+        <span class="badge badge-blue">AFO pipeline</span>
+      </div>
+      <div class="card-body">
+        <div class="model-highlight">
+          <div class="model-highlight-icon">{{ icon('cpu', 22) }}</div>
+          <div>
+            <span>Selected classifier</span>
+            <strong>{{ result.model_name }}</strong>
+            <small>{{ meta.best_model_family }}</small>
+          </div>
+          <span class="badge badge-green">{{ meta.best_metrics.accuracy|pct }} test accuracy</span>
+        </div>
+
+        <h4 class="mini-heading">Features consumed by the model</h4>
+        <div class="chip-group">
+          {% for feature in result.selected_features %}
+          <span class="feature-chip is-selected is-compact">{{ icon('check', 12) }} {{ feature_labels[feature] }}</span>
+          {% endfor %}
+        </div>
+
+        {% if imputed %}
+        <div class="form-note is-amber">
+          {{ icon('info', 15) }}
+          <span>Zero values for {{ imputed|join(', ') }} were treated as missing and imputed with training-set medians.</span>
+        </div>
+        {% endif %}
+
+        <div class="recommendation">
+          <div class="recommendation-head">{{ icon('stethoscope', 18) }} Recommended next step</div>
+          <p>
+            {% if result.prediction == 1 %}
+            The probability is above the decision threshold. Share this screening output with a qualified healthcare
+            professional, who can arrange confirmatory laboratory assessment and discuss appropriate follow-up.
+            {% else %}
+            The probability is below the decision threshold. Routine monitoring is still advisable; a clinician should
+            interpret this result alongside symptoms, history and confirmatory tests.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Recorded clinical parameters</h3>
+        <p class="card-subtitle">Values submitted for this assessment</p>
+      </div>
+      <span class="badge badge-slate">{{ inputs|length }} fields</span>
+    </div>
+    <div class="card-body card-body-flush">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th>Parameter</th><th>Unit</th><th class="num">Recorded value</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            {% for item in inputs %}
+            <tr>
+              <td>{{ item.label }}</td>
+              <td class="muted">{{ item.unit }}</td>
+              <td class="num"><strong>{{ item.display if item.display is defined else item.value }}</strong></td>
+              <td>
+                {% if item.imputed %}<span class="badge badge-amber">Imputed</span>
+                {% elif item.feature in result.selected_features %}<span class="badge badge-blue">Model input</span>
+                {% else %}<span class="muted">Not used by AFO subset</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="disclaimer-banner">
+    <span class="disclaimer-icon">{{ icon('alert', 20) }}</span>
+    <div>
+      <strong>Medical disclaimer</strong>
+      <p>This application is an educational screening prototype built for an academic project. It does not provide a
+      medical diagnosis, has not been clinically validated, and must never be used as the sole basis for treatment
+      decisions. Always consult a qualified healthcare professional.</p>
+    </div>
+  </section>
+
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">{{ icon('dashboard', 16) }} Dashboard</a>
+    <a class="btn btn-secondary" href="{{ url_for('history') }}">{{ icon('list', 16) }} Prediction history</a>
+    <a class="btn btn-primary" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.resultData = {{ {
+    'probability': result.probability_percent,
+    'risk': result.risk_class,
+    'label': result.label
+  }|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/result.js') }}"></script>
+{% endblock %}

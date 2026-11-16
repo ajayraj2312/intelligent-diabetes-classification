@@ -1,0 +1,113 @@
+{% from "_icons.html" import icon %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dashboard{% endblock %} · {{ site_name }}</title>
+  <meta name="description" content="Intelligent Diabetes Classification Using Archerfish Optimization and Machine Learning — educational screening prototype.">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body data-page="{{ page|default('') }}">
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        <span class="brand-mark">{{ icon('droplet', 23, 1.8) }}</span>
+        <span class="brand-copy">
+          <strong>GlycoSense</strong>
+          <small>Diabetes Intelligence</small>
+        </span>
+      </a>
+
+      <div class="sidebar-label">Clinical workspace</div>
+      <nav class="nav">
+        {% set nav_items = [
+          {'key': 'dashboard', 'endpoint': 'dashboard', 'label': 'Dashboard', 'icon': 'dashboard'},
+          {'key': 'predict', 'endpoint': 'predict', 'label': 'New assessment', 'icon': 'plus'},
+          {'key': 'afo', 'endpoint': 'afo', 'label': 'AFO optimizer', 'icon': 'fish'},
+          {'key': 'performance', 'endpoint': 'performance', 'label': 'Model performance', 'icon': 'chart'},
+          {'key': 'history', 'endpoint': 'history', 'label': 'Prediction history', 'icon': 'history'}
+        ] %}
+        {% for item in nav_items %}
+        <a class="nav-link {{ 'active' if page == item.key }}" href="{{ url_for(item.endpoint) }}">
+          {{ icon(item.icon, 19) }}<span>{{ item.label }}</span>
+          {% if item.key == 'afo' %}<span class="nav-badge">{{ model_meta.selected_features|length }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      </nav>
+
+      <div class="sidebar-label">Documentation</div>
+      <nav class="nav">
+        <a class="nav-link {{ 'active' if page == 'about' }}" href="{{ url_for('about') }}">
+          {{ icon('info', 19) }}<span>System information</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="engine-card">
+          <div class="engine-top">
+            <span class="status-dot"></span>
+            <span>AFO engine active</span>
+          </div>
+          <div class="engine-model">{{ model_meta.best_model_name|default('Model ready') }}</div>
+          <div class="engine-meta">
+            {{ model_meta.selected_features|length if model_meta.selected_features else 0 }} of {{ model_meta.feature_names|length if model_meta.feature_names else 8 }} features selected
+          </div>
+        </div>
+        <div class="sidebar-note">
+          {{ icon('shield', 14) }} Educational screening prototype
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" data-sidebar-close></div>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn mobile-menu" data-sidebar-toggle aria-label="Open navigation">
+          {{ icon('menu', 20) }}
+        </button>
+        <div class="page-heading">
+          <span class="eyebrow">{% block eyebrow %}Clinical workspace{% endblock %}</span>
+          <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+          <p class="page-subtitle">{% block page_subtitle %}{% endblock %}</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="date-chip">{{ icon('calendar', 15) }} {{ nav_date }}</span>
+          {% block topbar_actions %}
+          <a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+          {% endblock %}
+        </div>
+      </header>
+
+      <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-stack">
+              {% for category, message in messages %}
+              <div class="flash flash-{{ category }}" role="status">
+                <span class="flash-icon">{{ icon('check' if category == 'success' else ('alert' if category in ['danger','warning'] else 'info'), 18) }}</span>
+                <span>{{ message }}</span>
+                <button class="flash-close" type="button" data-dismiss-flash aria-label="Dismiss">×</button>
+              </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="app-footer">
+        <span>© 2026 {{ site_name }} · Intelligent Diabetes Classification Using AFO and Machine Learning</span>
+        <span class="footer-sep">•</span>
+        <span>For academic demonstration only — not a medical diagnosis.</span>
+      </footer>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

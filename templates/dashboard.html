@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Dashboard{% endblock %}
+{% block eyebrow %}Overview{% endblock %}
+{% block page_title %}Clinical overview{% endblock %}
+{% block page_subtitle %}A live view of screening activity, AFO feature optimization and classifier performance.{% endblock %}
+{% block topbar_actions %}
+<a class="btn btn-secondary btn-sm" href="{{ url_for('performance') }}">{{ icon('chart', 16) }} Performance</a>
+<a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 16) }} New assessment</a>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="hero-pill"><span class="status-dot"></span> AFO + machine learning pipeline</span>
+      <h2>Intelligent diabetes screening, built on optimized clinical features.</h2>
+      <p>
+        Eight clinical attributes are passed through an Archerfish Optimization wrapper, which identifies the most
+        informative subset before SVM, Random Forest, KNN and Naive Bayes are trained and compared.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-light" href="{{ url_for('predict') }}">{{ icon('stethoscope', 17) }} Run an assessment</a>
+        <a class="btn btn-ghost-light" href="{{ url_for('afo') }}">{{ icon('fish', 17) }} Explore AFO</a>
+      </div>
+      <div class="hero-meta">
+        <span>{{ meta.dataset.rows }} patient records</span>
+        <span>{{ meta.split.test_samples }} held-out test records</span>
+        <span>Reproducible seed {{ meta.split.random_state }}</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <span class="pipeline-num">01</span>
+          <strong>{{ meta.feature_names|length }}</strong>
+          <small>Clinical inputs</small>
+        </div>
+        <div class="pipeline-line"></div>
+        <div class="pipeline-step is-accent">
+          <span class="pipeline-num">02</span>
+          <strong>{{ meta.selected_features|length }}</strong>
+          <small>AFO features</small>
+        </div>
+        <div class="pipeline-line"></div>
+        <div class="pipeline-step">
+          <span class="pipeline-num">03</span>
+          <strong>4</strong>
+          <small>Classifiers</small>
+        </div>
+      </div>
+      <div class="hero-visual-foot">
+        <span class="status-dot"></span>
+        <span>{{ meta.best_model_name }} selected</span>
+        <strong>{{ meta.best_metrics.accuracy|pct }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="kpi-grid">
+    <article class="card kpi">
+      <div class="kpi-icon tone-blue">{{ icon('users', 20) }}</div>
+      <div class="kpi-copy">
+        <span class="kpi-label">Total patients analyzed</span>
+        <strong class="kpi-value">{{ stats.total }}</strong>
+        <span class="kpi-meta">{{ stats.today }} recorded today</span>
+      </div>
+    </article>
+    <article class="card kpi">
+      <div class="kpi-icon tone-rose">{{ icon('pulse', 20) }}</div>
+      <div class="kpi-copy">
+        <span class="kpi-label">Diabetic predictions</span>
+        <strong class="kpi-value">{{ stats.diabetic }}</strong>
+        <span class="kpi-meta">{{ ((stats.diabetic / stats.total * 100) if stats.total else 0)|round(1) }}% of all assessments</span>
+      </div>
+    </article>
+    <article class="card kpi">
+      <div class="kpi-icon tone-teal">{{ icon('shield', 20) }}</div>
+      <div class="kpi-copy">
+        <span class="kpi-label">Non-diabetic predictions</span>
+        <strong class="kpi-value">{{ stats.non_diabetic }}</strong>
+        <span class="kpi-meta">{{ ((stats.non_diabetic / stats.total * 100) if stats.total else 0)|round(1) }}% of all assessments</span>
+      </div>
+    </article>
+    <article class="card kpi">
+      <div class="kpi-icon tone-navy">{{ icon('target', 20) }}</div>
+      <div class="kpi-copy">
+        <span class="kpi-label">Model accuracy</span>
+        <strong class="kpi-value">{{ meta.best_metrics.accuracy|pct }}</strong>
+        <span class="kpi-meta">AFO-optimized · held-out test set</span>
+      </div>
+    </article>
+  </section>
+
+  <section class="chart-grid">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Prediction distribution</h3>
+          <p class="card-subtitle">All assessments stored in the local database</p>
+        </div>
+        <span class="badge badge-blue">{{ stats.total }} records</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box chart-box-sm">
+          <canvas id="distributionChart" aria-label="Prediction distribution chart"></canvas>
+          <div class="donut-center">
+            <strong>{{ stats.total }}</strong>
+            <span>assessments</span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Classifier accuracy comparison</h3>
+          <p class="card-subtitle">Conventional 8-feature models versus the AFO-optimized subset</p>
+        </div>
+        <span class="badge badge-slate">Test split</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-box">
+          <canvas id="modelChart" aria-label="Model accuracy comparison chart"></canvas>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="two-col-wide">
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">AFO feature subset</h3>
+          <p class="card-subtitle">Selected by the Archerfish Optimization wrapper</p>
+        </div>
+        <a class="link-arrow" href="{{ url_for('afo') }}">Open optimizer {{ icon('arrow-right', 14) }}</a>
+      </div>
+      <div class="card-body">
+        <div class="feature-shift">
+          <div class="shift-block">
+            <span>Input features</span>
+            <strong>{{ meta.feature_names|length }}</strong>
+          </div>
+          <span class="shift-arrow">{{ icon('arrow-right', 20) }}</span>
+          <div class="shift-block is-accent">
+            <span>Selected</span>
+            <strong>{{ meta.selected_features|length }}</strong>
+          </div>
+          <div class="shift-note">
+            <span class="badge badge-green">{{ (100 - (meta.selected_features|length / meta.feature_names|length * 100))|round(0)|int }}% reduction</span>
+            <span>Fitness {{ meta.afo.best_fitness|num(4) }}</span>
+          </div>
+        </div>
+        <div class="chip-group">
+          {% for feature in meta.feature_names %}
+            {% if feature in meta.selected_features %}
+            <span class="feature-chip is-selected">{{ icon('check', 13) }} {{ feature_labels[feature] }}</span>
+            {% else %}
+            <span class="feature-chip is-excluded">{{ icon('x', 13) }} {{ feature_labels[feature] }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Classifier leaderboard</h3>
+          <p class="card-subtitle">AFO-optimized models ranked on the held-out test set</p>
+        </div>
+        <a class="link-arrow" href="{{ url_for('performance') }}">Full report {{ icon('arrow-right', 14) }}</a>
+      </div>
+      <div class="card-body card-body-flush">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Classifier</th>
+                <th class="num">Accuracy</th>
+                <th class="num">F1</th>
+                <th class="num">AUC</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key, name in model_display.items() %}
+              {% set row = meta.metrics.optimized[key] %}
+              <tr>
+                <td>
+                  <div class="model-cell">
+                    <span class="model-dot dot-{{ loop.index }}"></span>
+                    <span>{{ name }}</span>
+                  </div>
+                </td>
+                <td class="num">{{ row.accuracy|pct }}</td>
+                <td class="num">{{ row.f1|pct }}</td>
+                <td class="num">{{ row.roc_auc|num(3) }}</td>
+                <td class="num">
+                  {% if key == meta.best_model_key %}<span class="badge badge-green">Best</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Recent predictions</h3>
+        <p class="card-subtitle">Latest screening results saved to SQLite</p>
+      </div>
+      <a class="link-arrow" href="{{ url_for('history') }}">View all history {{ icon('arrow-right', 14) }}</a>
+    </div>
+    <div class="card-body card-body-flush">
+      {% if recent %}
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Record</th>
+              <th>Date</th>
+              <th class="num">Glucose</th>
+              <th class="num">BMI</th>
+              <th>Outcome</th>
+              <th>Probability</th>
+              <th>Model</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recent %}
+            <tr>
+              <td>
+                <span class="record-id">#{{ row.id }}</span>
+                <span class="record-ref">{{ row.patient_ref or 'Anonymous' }}</span>
+              </td>
+              <td class="muted">{{ row.created_at|nice_datetime }}</td>
+              <td class="num">{{ row.glucose|num(0) }}</td>
+              <td class="num">{{ row.bmi|num(1) }}</td>
+              <td>
+                <span class="badge {{ 'badge-red' if row.prediction == 1 else 'badge-green' }}">
+                  {{ 'Diabetic' if row.prediction == 1 else 'Non-diabetic' }}
+                </span>
+              </td>
+              <td>
+                <div class="prob-cell">
+                  <span>{{ (row.probability * 100)|round(1) }}%</span>
+                  <span class="prob-track"><span class="prob-fill {{ 'is-high' if row.prediction == 1 else 'is-low' }}" style="width: {{ (row.probability * 100)|round(0) }}%"></span></span>
+                </div>
+              </td>
+              <td class="muted">{{ row.model_name }}</td>
+              <td class="num"><a class="icon-link" href="{{ url_for('result', prediction_id=row.id) }}" aria-label="View result">{{ icon('arrow-right', 15) }}</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <span class="empty-icon">{{ icon('pulse', 24) }}</span>
+        <h4>No assessments yet</h4>
+        <p>Run your first patient assessment to populate the dashboard and prediction history.</p>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('predict') }}">{{ icon('plus', 15) }} Start an assessment</a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.dashboardData = {{ chart_payload|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
